@@ -1,61 +1,29 @@
-import os
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from flask import Flask, request, jsonify
 from gradio_client import Client
 
-# === FastAPI app ===
-app = FastAPI(title="RAGPsy API Wrapper", version="1.0.0")
+# Initialize the Flask app
+app = Flask(__name__)
 
-# Add CORS middleware for Flutter
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Gradio API client
+client = Client("zeeshanali66/RagPsychologistapi")
 
-# Initialize Gradio client
-try:
-    client = Client("zeeshanali66/RagPsychologistapi")
-    print("✅ Connected to Hugging Face Space")
-except Exception as e:
-    print(f"❌ Error connecting to Hugging Face Space: {e}")
-    client = None
-
-# === API Models ===
-class ChatRequest(BaseModel):
-    question: str
-
-# === API Endpoints ===
-@app.post("/chat")
-async def chat_endpoint(request: ChatRequest):
-    if client is None:
-        raise HTTPException(status_code=500, detail="Hugging Face Space not available")
-    
+# Endpoint to interact with the Gradio model via Flask API
+@app.route('/predict', methods=['POST'])
+def predict():
     try:
-        result = client.predict(
-            message=request.question,
-            api_name="/predict"
-        )
-        return JSONResponse(content={"answer": result})
+        # Extract message from the incoming JSON request
+        data = request.get_json()
+        message = data.get('message', '')
+
+        # Make prediction using Gradio API
+        result = client.predict(message=message, api_name="/predict")
+
+        # Return the result in JSON format
+        return jsonify({"response": result})
+    
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
-@app.get("/")
-def root():
-    return {"message": "RAGPsy API Wrapper is running"}
-
-@app.get("/health")
-def health_check():
-    if client is None:
-        return {"status": "error", "message": "Hugging Face Space not connected"}
-    return {"status": "ok", "message": "Connected to Hugging Face Space"}
-
-# === Run the app ===
+# Run the Flask app
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=5000)
