@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
 from gradio_client import Client
+from flask_cors import CORS  # ✅ Import CORS
 
 # Initialize the Flask app
 app = Flask(__name__)
+CORS(app)  # ✅ This will allow all cross-origin requests (you can restrict it later)
 
 # Gradio API client
 client = Client("zeeshanali66/RagPsychologistapi")
